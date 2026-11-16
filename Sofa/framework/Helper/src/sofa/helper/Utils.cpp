@@ -38,7 +38,9 @@
 # include <string.h>            // for strerror()
 # include <unistd.h>            // for readlink()
 # include <errno.h>
+#ifndef __EMSCRIPTEN__
 # include <linux/limits.h>      // for PATH_MAX
+#endif
 # include <cstdlib>
 # include <sys/types.h>
 # include <pwd.h>
