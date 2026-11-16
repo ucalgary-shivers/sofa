@@ -363,7 +363,7 @@ void GLSLShader::InitShaders()
         glAttachObjectARB(m_hProgramObject, it->second);
     }
 
-#if defined(GL_EXT_geometry_shader4)
+#if defined(GL_EXT_geometry_shader4) && ! defined(__EMSCRIPTEN__)
     if (GetGeometryShaderID())
     {
         if (geometry_input_type != -1) glProgramParameteriEXT(m_hProgramObject, GL_GEOMETRY_INPUT_TYPE_EXT, geometry_input_type );
