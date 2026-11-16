@@ -22,6 +22,7 @@
 #include <sofa/gl/component/rendering3d/OglSceneFrame.h>
 #include <sofa/core/ObjectFactory.h>
 #include <sofa/gl/gl.h>
+#include <sofa/gl/glu.h>
 
 namespace sofa::gl::component::rendering3d
 {

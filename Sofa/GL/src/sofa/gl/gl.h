@@ -22,6 +22,9 @@
 #pragma once
 #include <sofa/gl/config.h>
 
+#ifdef __EMSCRIPTEN__
+#include <GL/Regal.h>
+#endif
 
 #include <string>
 #include <GL/glew.h>

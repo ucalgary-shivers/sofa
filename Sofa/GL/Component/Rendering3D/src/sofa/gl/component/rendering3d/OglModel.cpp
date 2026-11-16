@@ -31,6 +31,11 @@
 #include <cstring>
 #include <sofa/type/RGBAColor.h>
 
+#ifdef __EMSCRIPTEN__
+#include <stdint.h>
+typedef GLuint64 GLulong;
+#endif
+
 namespace sofa::gl::component::rendering3d
 {
 

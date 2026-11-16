@@ -22,7 +22,7 @@
 #include <sofa/gl/component/shader/PostProcessManager.h>
 #include <sofa/simulation/VisualVisitor.h>
 #include <sofa/core/ObjectFactory.h>
-
+#include <sofa/gl/glu.h>
 
 namespace sofa::gl::component::shader
 {

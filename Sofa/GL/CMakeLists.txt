@@ -9,7 +9,9 @@ endif()
 set(SOFAGLSRC_ROOT "src/sofa/gl")
 
 sofa_find_package(OpenGL REQUIRED BOTH_SCOPES)
-sofa_find_package(GLEW BOTH_SCOPES REQUIRED)
+if(NOT EMSCRIPTEN)
+    sofa_find_package(GLEW BOTH_SCOPES REQUIRED)
+endif()
 sofa_find_package(Sofa.Helper REQUIRED)
 sofa_find_package(Sofa.DefaultType REQUIRED)
 
@@ -50,7 +52,7 @@ set(SOURCE_FILES
     ${SOFAGLSRC_ROOT}/DrawToolGL.cpp
 )
 
-if(GLEW_FOUND)
+if(GLEW_FOUND OR EMSCRIPTEN)
     list(APPEND HEADER_FILES
         ${SOFAGLSRC_ROOT}/FrameBufferObject.h
         ${SOFAGLSRC_ROOT}/GLSLShader.h
@@ -67,20 +69,64 @@ endif()
 add_library(${PROJECT_NAME} SHARED ${HEADER_FILES} ${SOURCE_FILES})
 target_link_libraries(${PROJECT_NAME} PUBLIC Sofa.Helper Sofa.DefaultType)
 
-if(TARGET OpenGL::GL AND TARGET OpenGL::GLU) # Imported targets defined since CMake 3.8
-    target_link_libraries(${PROJECT_NAME} PUBLIC OpenGL::GL OpenGL::GLU)
-else()
-    target_link_libraries(${PROJECT_NAME} PUBLIC ${OPENGL_LIBRARIES})
-    target_include_directories(${PROJECT_NAME} SYSTEM PUBLIC ${OPENGL_INCLUDE_DIR})
-endif()
-if(CMAKE_SYSTEM_NAME STREQUAL Linux AND SOFA_BUILD_RELEASE_PACKAGE AND OPENGL_GLU_FOUND)
-    # Add GLU to Linux binaries
-    sofa_install_libraries(PATHS ${OPENGL_glu_LIBRARY})
+
+if(EMSCRIPTEN)
+    include(FetchContent)
+
+    FetchContent_Declare(
+        glu
+        GIT_REPOSITORY "https://github.com/ptitSeb/GLU"
+        GIT_TAG "2fed2bd"
+        GIT_PROGRESS TRUE
+        GIT_SHALLOW TRUE
+        # EXCLUDE_FROM_ALL
+    )
+    FetchContent_MakeAvailable(glu)
+
+    file(GLOB_RECURSE GLUP_SOURCES "${glu_SOURCE_DIR}/src/*/*/*.cc" "${glu_SOURCE_DIR}/src/*/*.c")
+    # in EXTRA_DIST in ${glu_SOURCE_DIR}/Makefile.am
+    list(FILTER GLUP_SOURCES EXCLUDE REGEX "priorityq-heap")
+
+    # use regal for glu
+    file(WRITE "${glu_SOURCE_DIR}/include/GL/gl.h" 
+        "#include <GL/Regal.h>\n"
+        "\n"
+        "#ifndef APIENTRY\n"
+        "#define APIENTRY GLAPIENTRY\n"
+        "#endif\n"
+    )
+
+    add_library(glup SHARED ${GLUP_SOURCES})
+    target_include_directories(glup PRIVATE ${glu_SOURCE_DIR}/include)
+    target_include_directories(glup PRIVATE ${glu_SOURCE_DIR}/src/include/)
+    target_include_directories(glup PRIVATE ${glu_SOURCE_DIR}/src/libnurbs/interface)
+    target_include_directories(glup PRIVATE ${glu_SOURCE_DIR}/src/libnurbs/internals)
+    target_include_directories(glup PRIVATE ${glu_SOURCE_DIR}/src/libnurbs/nurbtess)
+    target_include_directories(glup PRIVATE ${glu_SOURCE_DIR}/src/libtess)
+    target_include_directories(glup PRIVATE ${glu_SOURCE_DIR}/src/libutil)
+    target_compile_options(glup PRIVATE -DLIBRARYBUILD -Wno-register)
+    target_compile_options(glup PUBLIC --use-port=regal)
+    target_link_options(glup PUBLIC --use-port=regal)
+
+    target_link_libraries(${PROJECT_NAME} PUBLIC $<BUILD_INTERFACE:glup>)
+
 endif()
 
-target_link_libraries(${PROJECT_NAME} PUBLIC GLEW::GLEW)
-if (SOFA_BUILD_RELEASE_PACKAGE OR CMAKE_SYSTEM_NAME STREQUAL Windows)
-    sofa_install_libraries(TARGETS GLEW::GLEW)
+if(NOT EMSCRIPTEN)
+    if(TARGET OpenGL::GL AND TARGET OpenGL::GLU) # Imported targets defined since CMake 3.8
+        target_link_libraries(${PROJECT_NAME} PUBLIC OpenGL::GL OpenGL::GLU)
+    else()
+        target_link_libraries(${PROJECT_NAME} PUBLIC ${OPENGL_LIBRARIES})
+        target_include_directories(${PROJECT_NAME} SYSTEM PUBLIC ${OPENGL_INCLUDE_DIR})
+    endif()
+    if(CMAKE_SYSTEM_NAME STREQUAL Linux AND SOFA_BUILD_RELEASE_PACKAGE AND OPENGL_GLU_FOUND)
+        # Add GLU to Linux binaries
+        sofa_install_libraries(PATHS ${OPENGL_glu_LIBRARY})
+    endif()
+    target_link_libraries(${PROJECT_NAME} PUBLIC GLEW::GLEW)
+    if (SOFA_BUILD_RELEASE_PACKAGE OR CMAKE_SYSTEM_NAME STREQUAL Windows)
+        sofa_install_libraries(TARGETS GLEW::GLEW)
+    endif()
 endif()
 
 sofa_create_package_with_targets(
