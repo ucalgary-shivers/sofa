@@ -109,3 +109,7 @@ sofa_add_targets_to_package(
     INCLUDE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}"
     INCLUDE_INSTALL_DIR "Sofa.GUI/runSofa"
     )
+
+if(EMSCRIPTEN)
+    target_link_options(${PROJECT_NAME} PUBLIC --embed-file ${CMAKE_SOURCE_DIR}/examples/Demos/fallingSOFA.scn@Demos/fallingSOFA.scn)
+endif()
