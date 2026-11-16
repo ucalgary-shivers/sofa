@@ -83,21 +83,28 @@ sofa_find_package(Sofa.Config REQUIRED)
 
 ## Boost (1.54.0 or higher) is now mandatory.
 set(BOOST_MIN_VERSION "1.54.0")
-set(Boost_NO_BOOST_CMAKE TRUE)
-sofa_find_package(Boost ${BOOST_MIN_VERSION} QUIET)
-if(NOT Boost_FOUND)
-    if(WIN32)
-        message(FATAL_ERROR "Boost (${BOOST_MIN_VERSION} or higher) is mandatory.\n"
-            "Note that Boost autodetection on Windows was removed.\n"
-            "Please follow CMake documentation to find Boost on your system.\n"
-            "Hint: set BOOST_ROOT to your Boost location."
-            )
-    else()
-        message(FATAL_ERROR "Boost (${BOOST_MIN_VERSION} or higher) is mandatory.")
+if(EMSCRIPTEN)
+    set(Boost_NO_BOOST_CMAKE TRUE)
+    add_compile_options(--use-port=boost_headers)
+    add_link_options(--use-port=boost_headers)
+else()
+    set(Boost_NO_BOOST_CMAKE TRUE)
+    sofa_find_package(Boost ${BOOST_MIN_VERSION} QUIET)
+    if(NOT Boost_FOUND)
+        if(WIN32)
+            message(FATAL_ERROR "Boost (${BOOST_MIN_VERSION} or higher) is mandatory.\n"
+                "Note that Boost autodetection on Windows was removed.\n"
+                "Please follow CMake documentation to find Boost on your system.\n"
+                "Hint: set BOOST_ROOT to your Boost location."
+                )
+        else()
+            message(FATAL_ERROR "Boost (${BOOST_MIN_VERSION} or higher) is mandatory.")
+        endif()
     endif()
-endif()
 
-sofa_find_package(Boost QUIET REQUIRED)
+    sofa_find_package(Boost QUIET REQUIRED)
+
+endif()
 
 option(SOFA_USE_MIMALLOC "Use mimalloc to replace malloc (known to be more efficient, especially with MSVC)" OFF)
 if(SOFA_USE_MIMALLOC)
@@ -107,7 +114,9 @@ endif()
 add_library(${PROJECT_NAME} SHARED ${HEADER_FILES} ${SOURCE_FILES})
 
 target_link_libraries(${PROJECT_NAME} PUBLIC Sofa.Config)
-target_link_libraries(${PROJECT_NAME} PUBLIC Boost::boost)
+if(NOT EMSCRIPTEN)
+    target_link_libraries(${PROJECT_NAME} PUBLIC Boost::boost)
+endif()
 
 if(mimalloc_FOUND)
     target_link_libraries(${PROJECT_NAME} PUBLIC mimalloc)
