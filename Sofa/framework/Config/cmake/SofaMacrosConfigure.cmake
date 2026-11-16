@@ -274,11 +274,15 @@ macro(sofa_fetch_dependency name)
             GIT_SHALLOW ${GIT_SHALLOW_VALUE}
             )"
         )
-
-        execute_process(COMMAND "${CMAKE_COMMAND}" -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER} -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER} -DCMAKE_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM} -G "${CMAKE_GENERATOR}" .
-                WORKING_DIRECTORY "${fetched_dir}-temp"
-                RESULT_VARIABLE generate_exitcode
-                OUTPUT_VARIABLE generate_logs ERROR_VARIABLE generate_logs)
+        set(CMAKE_CONFIGURE_COMMAND ${CMAKE_COMMAND})
+        if(EMSCRIPTEN)
+            set(CMAKE_CONFIGURE_COMMAND emcmake ${CMAKE_COMMAND})
+        endif()
+        execute_process(COMMAND ${CMAKE_CONFIGURE_COMMAND} -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER} -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER} -DCMAKE_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM} -G ${CMAKE_GENERATOR} .
+            WORKING_DIRECTORY "${fetched_dir}-temp"
+            # COMMAND_ECHO STDOUT
+            RESULT_VARIABLE generate_exitcode
+            OUTPUT_VARIABLE generate_logs ERROR_VARIABLE generate_logs)
         file(APPEND "${fetched_dir}-temp/logs.txt" "${generate_logs}")
         execute_process(COMMAND "${CMAKE_COMMAND}" --build .
                 WORKING_DIRECTORY "${fetched_dir}-temp"
@@ -500,6 +504,8 @@ macro(sofa_find_package name)
     endif()
 
     if(NOT TARGET ${name})
+        cmake_policy(SET CMP0074 NEW)
+        cmake_policy(SET CMP0144 NEW) 
         find_package(${name} ${find_package_args})
     else()
         # Dirty ? set the variable _FOUND if the target is present
