@@ -23,7 +23,9 @@
 #include <sofa/gl/config.h>
 
 #include <sofa/helper/logging/Messaging.h>
+#ifndef __EMSCRIPTEN__
 #include <sofa/helper/system/FileMonitor.h>
+#endif
 #include <sofa/gl/gl.h>
 #include <map>
 
@@ -245,7 +247,9 @@ protected:
     GLint geometry_vertices_out;
 #endif
 
+    #ifndef __EMSCRIPTEN__
     std::shared_ptr<sofa::helper::system::FileEventListener> m_filelistener ;
+    #endif
 };
 
 } // namespace sofa::gl
