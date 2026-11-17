@@ -310,6 +310,8 @@ if(EMSCRIPTEN)
                 message(STATUS "Setting emscripten properties for executable ${target}")
                 set_target_properties(${target} PROPERTIES SUFFIX ".html")
                 target_link_options(${target} PRIVATE -sMAIN_MODULE=1)# -sFULL_ES3=1)
+                install(FILES "${CMAKE_BINARY_DIR}/bin/${target}.js" DESTINATION bin COMPONENT applications)
+                install(FILES "${CMAKE_BINARY_DIR}/bin/${target}.wasm" DESTINATION bin COMPONENT applications)
                 # set_target_properties(${target} PROPERTIES VERSION) # fails
             elseif(target_type MATCHES "SHARED_LIBRARY")
                 message(STATUS "Setting emscripten properties for library ${target}")
