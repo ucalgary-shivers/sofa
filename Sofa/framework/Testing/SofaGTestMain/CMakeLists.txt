@@ -3,7 +3,6 @@ project(SofaGTestMain)
 
 ## Dependencies
 sofa_find_package(Sofa.Simulation.Common REQUIRED)
-sofa_find_package(GTest REQUIRED)
 
 add_library(${PROJECT_NAME} SofaGTestMain.cpp)
 target_link_libraries(${PROJECT_NAME} PUBLIC Sofa.Helper Sofa.Simulation.Common)

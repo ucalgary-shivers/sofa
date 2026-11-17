@@ -416,7 +416,9 @@ macro(sofa_auto_set_target_version)
                 # Default to Sofa_VERSION for all SOFA modules
                 set(version ${Sofa_VERSION})
             endif()
-            set_target_properties(${target} PROPERTIES VERSION "${version}")
+            if(NOT EMSCRIPTEN)
+                set_target_properties(${target} PROPERTIES VERSION "${version}")
+            endif()
         endif()
 
         set(${sofa_target_name_upper}_VERSION "${version}")

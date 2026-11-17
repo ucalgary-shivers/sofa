@@ -24,10 +24,12 @@ if(NOT GTest_FOUND AND SOFA_ALLOW_FETCH_DEPENDENCIES)
 
     message("${PROJECT_NAME}: adding subdirectory ${googletest_SOURCE_DIR}")
 
-    sofa_fetch_dependency(googletest
-            GIT_REPOSITORY https://github.com/google/googletest
-            GIT_TAG        v1.14.0
+    include(FetchContent)
+    FetchContent_Declare(googletest
+        GIT_REPOSITORY https://github.com/google/googletest
+        GIT_TAG        v1.14.0
     )
+    FetchContent_MakeAvailable(googletest)
 
     target_compile_options(gtest_main PRIVATE "-DGTEST_LINKED_AS_SHARED_LIBRARY=0")
     target_compile_options(gtest PRIVATE "-DGTEST_CREATE_SHARED_LIBRARY=1")

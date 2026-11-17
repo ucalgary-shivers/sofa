@@ -30,12 +30,19 @@ set(SOURCE_FILES
     ${SOFACOMPONENTPLAYBACK_SOURCE_DIR}/WriteTopology.cpp
 )
 
-sofa_find_package(ZLIB REQUIRED)
+if(EMSCRIPTEN)
+    add_compile_options(--use-port=zlib)
+    add_link_options(--use-port=zlib)
+else()
+    sofa_find_package(ZLIB REQUIRED) # BlenderExporter
+endif()
 sofa_find_package(Sofa.Simulation.Common REQUIRED)
 
 add_library(${PROJECT_NAME} SHARED ${HEADER_FILES} ${SOURCE_FILES} ${WRAPPER_FILES})
 target_link_libraries(${PROJECT_NAME} PUBLIC Sofa.Simulation.Common)
-target_link_libraries(${PROJECT_NAME} PUBLIC ZLIB::ZLIB)
+if(NOT EMSCRIPTEN)
+    target_link_libraries(${PROJECT_NAME} PUBLIC ZLIB::ZLIB)
+endif()   
 if(CMAKE_SYSTEM_NAME STREQUAL Windows)
     sofa_install_libraries(TARGETS ZLIB::ZLIB)
 endif()

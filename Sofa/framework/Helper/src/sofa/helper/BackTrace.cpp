@@ -23,7 +23,11 @@
 
 #include <csignal>
 #if !defined(WIN32) && !defined(__APPLE__)
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#else
 #include <execinfo.h>
+#endif
 #include <unistd.h>
 #endif
 #if defined(WIN32)
@@ -48,8 +52,11 @@ namespace sofa::helper
 BackTrace::StackTrace BackTrace::getTrace([[maybe_unused]] size_t maxEntries)
 {
     BackTrace::StackTrace result;
-
-#if defined(__GNUC__) && !defined(__APPLE__) && !defined(WIN32)
+#if defined __EMSCRIPTEN__
+    char buf[1024];
+    emscripten_get_callstack(EM_LOG_C_STACK | EM_LOG_JS_STACK, buf, sizeof(buf));
+    printf("Callstack:\n%s\n", buf);
+#elif defined(__GNUC__) && !defined(__APPLE__) && !defined(WIN32)
     void *array[128];
     int size = backtrace(array, sizeof(array) / sizeof(array[0]));
     if (size > 0)

@@ -139,6 +139,10 @@ if(UNIX)
     endif()
 endif(UNIX)
 
+if(EMSCRIPTEN)
+    # link_directories(${CMAKE_BINARY_DIR}/bin) # libraries relocated to bin at end of this CMakeLists.txt
+    link_directories(${CMAKE_BINARY_DIR}/lib)
+endif()
 
 ### Windows config
 if(MSVC)
@@ -286,6 +290,62 @@ sofa_install_git_infos(${PROJECT_NAME} ${CMAKE_CURRENT_SOURCE_DIR})
 # Post-install scripts (must be the last add_subdirectory)
 add_subdirectory(tools/postinstall-fixup)
 
+# Update all executables, (must be after the last add_subdirectory)
+if(EMSCRIPTEN)
+    message("Setting emscripten properties for components:")
+    
+    function(set_component_properties_recursive dir)
+        get_property(targets DIRECTORY "${dir}" PROPERTY BUILDSYSTEM_TARGETS)
+        foreach(target IN LISTS targets)
+            get_target_property(target_type ${target} TYPE)
+            # message("target_type ${target_type}")
+
+            # default
+            if(target_type MATCHES "INTERFACE")
+                target_compile_options(${target} INTERFACE -fPIC)
+            elseif(NOT target_type STREQUAL "UTILITY")
+                target_compile_options(${target} PRIVATE -fPIC)
+            endif()
+            if(target_type STREQUAL "EXECUTABLE")
+                message(STATUS "Setting emscripten properties for executable ${target}")
+                set_target_properties(${target} PROPERTIES SUFFIX ".html")
+                target_link_options(${target} PRIVATE -sMAIN_MODULE=1)# -sFULL_ES3=1)
+                install(FILES "${CMAKE_BINARY_DIR}/bin/${target}.js" DESTINATION bin COMPONENT applications)
+                install(FILES "${CMAKE_BINARY_DIR}/bin/${target}.wasm" DESTINATION bin COMPONENT applications)
+                # set_target_properties(${target} PROPERTIES VERSION) # fails
+            elseif(target_type MATCHES "SHARED_LIBRARY")
+                message(STATUS "Setting emscripten properties for library ${target}")
+                target_link_options(${target} PRIVATE -sSIDE_MODULE=1 )
+                # set_target_properties(${target} PROPERTIES
+                #     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+                #     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+                #     ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+                # )
+            else()
+                message(STATUS "Skipping ${target} of type ${target_type}")
+            endif()
+
+            # # optimizations: pthreads 
+            # if(target_type STREQUAL "EXECUTABLE")
+            #     target_compile_options(${target} PRIVATE -sPROXY_TO_PTHREAD -sFORCE_FILESYSTEM=1)
+            #     target_link_options(${target} PRIVATE -sPROXY_TO_PTHREAD -sFORCE_FILESYSTEM=1)
+            # endif()
+            # if(target_type STREQUAL "EXECUTABLE" OR target_type MATCHES "SHARED_LIBRARY")
+            #     target_compile_options(${target} PRIVATE -pthread -sOFFSCREENCANVAS_SUPPORT)
+            #     target_link_options(${target} PRIVATE -pthread -sOFFSCREENCANVAS_SUPPORT)
+            # endif()
+
+        endforeach()
+
+        get_property(subdirs DIRECTORY "${dir}" PROPERTY SUBDIRECTORIES)
+        foreach(subdir IN LISTS subdirs)
+            set_component_properties_recursive("${subdir}")
+        endforeach()
+    endfunction()
+
+    set_component_properties_recursive("${CMAKE_CURRENT_SOURCE_DIR}")
+endif(EMSCRIPTEN)
+
 if(SOFA_BUILD_RELEASE_PACKAGE)
     # if building release package using Pixi, build a bundle of licence files of all 
     # dependencies that will be embedded in the package
@@ -330,6 +390,9 @@ if(SOFA_BUILD_RELEASE_PACKAGE)
         else()
             set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_FILE_NAME}_Linux")
         endif()
+    endif()
+    if(EMSCRIPTEN)
+        set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_FILE_NAME}_Emscripten")
     endif()
     set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/LICENSE-LGPL.md")
     set(CPACK_RESOURCE_FILE_README "${CMAKE_SOURCE_DIR}/README.md")

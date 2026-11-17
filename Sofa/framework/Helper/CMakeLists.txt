@@ -215,6 +215,8 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL Darwin)
     list(APPEND SOURCE_FILES  ${SRC_ROOT}/system/FileMonitor_macosx.cpp)
 elseif(CMAKE_SYSTEM_NAME STREQUAL Windows)
     list(APPEND SOURCE_FILES  ${SRC_ROOT}/system/FileMonitor_windows.cpp)
+elseif(EMSCRIPTEN)
+    list(FILTER HEADER_FILES EXCLUDE REGEX "${SRC_ROOT}/system/FileMonitor.h")
 endif()
 
 if (SOFA_TRACY)
@@ -222,7 +224,7 @@ if (SOFA_TRACY)
     list(APPEND SOURCE_FILES ${SRC_ROOT}/logging/TracyMessageHandler.cpp)
 endif()
 
-sofa_find_package(Sofa.Config REQUIRED)
+find_package(Sofa.Config REQUIRED)
 sofa_find_package(Sofa.Type REQUIRED)
 sofa_find_package(Sofa.Topology REQUIRED)
 
