@@ -46,7 +46,7 @@ macro(sofa_create_package_with_targets)
         list(APPEND child_args INCLUDE_INSTALL_DIR "${ARG_PACKAGE_NAME}")
     endif()
 
-    if(ARG_RELOCATABLE)
+    if(ARG_RELOCATABLE AND NOT RELOCATE_EMSCRIPTEN_LIB_TO_BIN)
         string(TOUPPER "${CMAKE_PROJECT_NAME}_${ARG_RELOCATABLE}_RELOCATABLE_PATH" global_relocatable_path)
         if(${global_relocatable_path})
             set(plugin_relocatable_path "${${global_relocatable_path}}" )
@@ -116,7 +116,7 @@ macro(sofa_create_component_in_package_with_targets)
         list(APPEND child_args INCLUDE_INSTALL_DIR "${ARG_PACKAGE_NAME}")
     endif()
 
-    if(ARG_RELOCATABLE)
+    if(ARG_RELOCATABLE AND NOT RELOCATE_EMSCRIPTEN_LIB_TO_BIN)
         string(TOUPPER "${CMAKE_PROJECT_NAME}_${ARG_RELOCATABLE}_RELOCATABLE_PATH" global_relocatable_path)
         if(${global_relocatable_path})
             set(plugin_relocatable_path "${${global_relocatable_path}}" )
@@ -196,7 +196,7 @@ macro(sofa_create_package)
         endif()
     endforeach()
 
-    if(ARG_RELOCATABLE AND NOT ARG_RELOCATABLE_PATH)
+    if(ARG_RELOCATABLE AND NOT ARG_RELOCATABLE_PATH AND NOT RELOCATE_EMSCRIPTEN_LIB_TO_BIN)
         string(TOUPPER "${CMAKE_PROJECT_NAME}_${ARG_RELOCATABLE}_RELOCATABLE_PATH" global_relocatable_path)
         if(${global_relocatable_path})
             set(ARG_RELOCATABLE_PATH "${${global_relocatable_path}}" )
@@ -231,7 +231,7 @@ macro(sofa_create_package)
         "### Expanded from \@PACKAGE_GUARD\@ by SofaMacrosInstall.cmake ###" "\n"
         "include_guard()"                                                    "\n"
         )
-    if(ARG_RELOCATABLE_PATH)
+    if(ARG_RELOCATABLE_PATH AND NOT RELOCATE_EMSCRIPTEN_LIB_TO_BIN)
         string(CONCAT PACKAGE_GUARD ${PACKAGE_GUARD}
             "list(APPEND CMAKE_LIBRARY_PATH \"\${CMAKE_CURRENT_LIST_DIR}/../../../bin\")" "\n"
             "list(APPEND CMAKE_LIBRARY_PATH \"\${CMAKE_CURRENT_LIST_DIR}/../../../lib\")" "\n"
@@ -247,7 +247,7 @@ macro(sofa_create_package)
     configure_package_config_file(${ARG_PACKAGE_NAME}Config.cmake.in "${CMAKE_BINARY_DIR}/lib/cmake/${ARG_PACKAGE_NAME}Config.cmake" INSTALL_DESTINATION "lib/cmake/${package_install_dir}")
     install(FILES "${CMAKE_BINARY_DIR}/lib/cmake/${ARG_PACKAGE_NAME}Config.cmake" DESTINATION "lib/cmake/${package_install_dir}" COMPONENT headers)
 
-    if(ARG_RELOCATABLE_PATH)
+    if(ARG_RELOCATABLE_PATH AND NOT RELOCATE_EMSCRIPTEN_LIB_TO_BIN)
         sofa_set_project_install_relocatable(${package_install_dir} ${CMAKE_CURRENT_BINARY_DIR} ${ARG_RELOCATABLE_PATH})
     endif()
 
@@ -526,7 +526,7 @@ macro(sofa_auto_set_target_include_directories)
             target_include_directories(${target} ${TARGET_VISIBILITY} "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/include/${ARG_PACKAGE_NAME}>")
         endif()
 
-        if(ARG_RELOCATABLE_PATH)
+        if(ARG_RELOCATABLE_PATH AND NOT RELOCATE_EMSCRIPTEN_LIB_TO_BIN)
             if(NOT "\$<INSTALL_INTERFACE:include>" IN_LIST target_include_dirs)
                 target_include_directories(${target} ${TARGET_VISIBILITY} "$<INSTALL_INTERFACE:include>")
             endif()
@@ -581,7 +581,7 @@ macro(sofa_auto_set_target_rpath)
                 set(dep ${aliased_dep})
             endif()
             get_target_property(dep_type ${dep} TYPE)
-            if("${dep_type}" STREQUAL "SHARED_LIBRARY")
+            if("${dep_type}" STREQUAL "SHARED_LIBRARY" AND NOT RELOCATE_EMSCRIPTEN_LIB_TO_BIN)
                 get_target_property(dep_reloc_install_dir ${dep} "RELOCATABLE_INSTALL_DIR")
                 if(dep_reloc_install_dir)
                     # the dependency is relocatable
@@ -645,11 +645,16 @@ macro(sofa_install_targets_in_package)
         endif()
     endforeach()
 
+    set(LIBRARY_DESTINATION "lib")
+    if(RELOCATE_EMSCRIPTEN_LIB_TO_BIN)
+        set(LIBRARY_DESTINATION "bin")
+    endif()
+
     install(TARGETS ${ARG_TARGETS}
             EXPORT ${ARG_PACKAGE_NAME}Targets
             RUNTIME DESTINATION "bin" COMPONENT applications
-            LIBRARY DESTINATION "lib" COMPONENT libraries
-            ARCHIVE DESTINATION "lib" COMPONENT libraries
+            LIBRARY DESTINATION "${LIBRARY_DESTINATION}" COMPONENT libraries
+            ARCHIVE DESTINATION "${LIBRARY_DESTINATION}" COMPONENT libraries
             PUBLIC_HEADER DESTINATION "include/${ARG_INCLUDE_INSTALL_DIR}" COMPONENT headers
 
             # [MacOS] install runSofa above the already populated runSofa.app (see CMAKE_INSTALL_PREFIX)
@@ -899,6 +904,11 @@ function(sofa_install_libraries)
         set(BUILD_TYPES ${CMAKE_BUILD_TYPE})
     endif()
 
+    set(LIBRARY_DESTINATION "lib")
+    if(RELOCATE_EMSCRIPTEN_LIB_TO_BIN)
+        set(LIBRARY_DESTINATION "bin")
+    endif()
+
     foreach(BUILD_TYPE ${BUILD_TYPES})
         string(TOUPPER "${BUILD_TYPE}" BUILD_TYPE_UPPER)
         foreach(target ${targets})
@@ -907,7 +917,7 @@ function(sofa_install_libraries)
             get_target_property(is_framework ${target} FRAMEWORK)
             if(APPLE AND is_framework)
                 get_filename_component(target_location ${target_location} DIRECTORY) # parent dir
-                install(DIRECTORY ${target_location} DESTINATION "lib" COMPONENT applications)
+                install(DIRECTORY ${target_location} DESTINATION "${LIBRARY_DESTINATION}" COMPONENT applications)
             else()
                 list(APPEND lib_paths "${target_location}")
                 list(APPEND lib_paths "${target_implib}")
@@ -964,9 +974,9 @@ function(sofa_install_libraries)
             if(WIN32)
                 install(FILES ${SHARED_LIBS} DESTINATION "bin" COMPONENT applications)
             else()
-                install(FILES ${SHARED_LIBS} DESTINATION "lib" COMPONENT applications)
+                install(FILES ${SHARED_LIBS} DESTINATION "${LIBRARY_DESTINATION}" COMPONENT applications)
             endif()
-            install(FILES ${STATIC_LIBS} DESTINATION "lib" COMPONENT libraries)
+            install(FILES ${STATIC_LIBS} DESTINATION "${LIBRARY_DESTINATION}" COMPONENT libraries)
 
             # Copy the libs (Windows only)
             if(WIN32 AND NOT no_copy)

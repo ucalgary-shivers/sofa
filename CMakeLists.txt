@@ -139,9 +139,16 @@ if(UNIX)
     endif()
 endif(UNIX)
 
+option(RELOCATE_EMSCRIPTEN_LIB_TO_BIN "Relocate emscripten libraries to bin" ON)
 if(EMSCRIPTEN)
-    # link_directories(${CMAKE_BINARY_DIR}/bin) # libraries relocated to bin at end of this CMakeLists.txt
-    link_directories(${CMAKE_BINARY_DIR}/lib)
+    if(RELOCATE_EMSCRIPTEN_LIB_TO_BIN)
+        message(STATUS "Relocating Emscripten libraries to bin")
+        set(EMSCRIPTEN_LIB_DIR "bin")
+    else()
+        set(EMSCRIPTEN_LIB_DIR "lib")
+    endif()
+    set(CMAKE_INSTALL_LIBDIR ${EMSCRIPTEN_LIB_DIR})
+    link_directories(${CMAKE_BINARY_DIR}/${EMSCRIPTEN_LIB_DIR}) # libraries relocated to bin at end of this CMakeLists.txt
 endif()
 
 ### Windows config
@@ -324,11 +331,13 @@ if(EMSCRIPTEN)
             elseif(target_type MATCHES "SHARED_LIBRARY")
                 message(STATUS "Setting emscripten properties for library ${target}")
                 target_link_options(${target} PRIVATE -sSIDE_MODULE=1 )
-                # set_target_properties(${target} PROPERTIES
-                #     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
-                #     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
-                #     ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
-                # )
+                if(RELOCATE_EMSCRIPTEN_LIB_TO_BIN)
+                    set_target_properties(${target} PROPERTIES
+                        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+                        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+                        ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+                    )
+                endif()
             else()
                 message(STATUS "Skipping ${target} of type ${target_type}")
             endif()
