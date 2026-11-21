@@ -107,6 +107,7 @@ if(EMSCRIPTEN)
     target_compile_options(glup PRIVATE -DLIBRARYBUILD -Wno-register)
     target_compile_options(glup PUBLIC --use-port=regal)
     target_link_options(glup PUBLIC --use-port=regal)
+    install(TARGETS glup LIBRARY DESTINATION ${LIB_INSTALL_DIR})
 
     target_link_libraries(${PROJECT_NAME} PUBLIC $<BUILD_INTERFACE:glup>)
 
