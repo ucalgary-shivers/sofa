@@ -48,7 +48,7 @@ if(NOT TinyXML2_FOUND AND SOFA_ALLOW_FETCH_DEPENDENCIES)
     set(GIT_TAG "${VERSION}")
     set(GIT_REPOSITORY "https://github.com/leethomason/tinyxml2.git")
     message("${PACKAGE}: DEPENDENCY ${DEPENDENCY} NOT FOUND. SOFA_ALLOW_FETCH_DEPENDENCIES is ON, fetching ${DEPENDENCY}...")
-
+    set(tinyxml2_BUILD_TESTING OFF CACHE INTERNAL "")
     sofa_fetch_dependency(${DEPENDENCY}
             GIT_REPOSITORY ${GIT_REPOSITORY}
             GIT_TAG        ${GIT_TAG}
