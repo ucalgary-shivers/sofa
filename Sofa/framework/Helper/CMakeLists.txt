@@ -11,6 +11,9 @@ if(NOT TARGET nlohmann_json AND SOFA_ALLOW_FETCH_DEPENDENCIES)
     message("Sofa.GUI.Common: DEPENDENCY nlohmann_json NOT FOUND. SOFA_ALLOW_FETCH_DEPENDENCIES is ON, fetching nlohmann_json...")
 
     set(JSON_BuildTests OFF CACHE INTERNAL "")
+    if(EMSCRIPTEN)
+        set(JSON_Install ON CACHE INTERNAL "")
+    endif()
 
     sofa_fetch_dependency(nlohmann_json
             GIT_REPOSITORY https://github.com/nlohmann/json.git
