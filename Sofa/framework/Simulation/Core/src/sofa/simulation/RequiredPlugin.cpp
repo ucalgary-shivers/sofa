@@ -113,6 +113,7 @@ bool RequiredPlugin::loadPlugin()
         const auto componentName = this->getName();
         {
             const auto considerNameAsPluginName = FileSystem::cleanPath(componentName);
+            #ifndef __EMSCRIPTEN__
             if (FileSystem::isFile(considerNameAsPluginName) || !pluginManager.findPlugin(considerNameAsPluginName).empty())
             {
                 msg_deprecated() << "The name of the plugin to load (" << componentName
@@ -120,6 +121,7 @@ bool RequiredPlugin::loadPlugin()
                     << "', not in the the Data '" << this->name.getName() << "'. The plugin '"
                     << componentName << "' may be loaded, but this may change in the future.";
             }
+            #endif
         }
         pluginsToLoad.push_back(componentName);
     }
@@ -128,7 +130,11 @@ bool RequiredPlugin::loadPlugin()
     std::ostringstream errmsg;
     for (const auto& pluginName : pluginsToLoad)
     {
+        #ifndef __EMSCRIPTEN__
         const std::string pluginFilePath = FileSystem::cleanPath( pluginName ); // pluginFilePath is not necessarily a path
+        #else
+        const std::string pluginFilePath = pluginName;
+        #endif
         bool isNameLoaded = false;
         for (const auto& suffix : suffixVec)
         {

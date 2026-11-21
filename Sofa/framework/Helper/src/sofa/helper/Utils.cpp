@@ -120,6 +120,8 @@ static std::string computeExecutablePath()
     }
     path = std::string(&real_path[0]);
 
+#elif defined(__EMSCRIPTEN__)
+
 #else  // Linux
     std::vector<char> buffer(PATH_MAX);
     if (readlink("/proc/self/exe", &buffer[0], buffer.size()) == -1) {

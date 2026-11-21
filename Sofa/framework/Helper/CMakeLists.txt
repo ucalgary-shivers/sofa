@@ -232,7 +232,11 @@ sofa_find_package(Sofa.Type REQUIRED)
 sofa_find_package(Sofa.Topology REQUIRED)
 
 # LIBRARY
-add_library(${PROJECT_NAME} SHARED ${HEADER_FILES} ${SOURCE_FILES})
+if(EMSCRIPTEN)  
+    add_library(${PROJECT_NAME} STATIC ${HEADER_FILES} ${SOURCE_FILES})
+else()
+    add_library(${PROJECT_NAME} SHARED ${HEADER_FILES} ${SOURCE_FILES})
+endif()
 
 if((CMAKE_SYSTEM_NAME STREQUAL Windows) AND SOFA_USE_DEPENDENCY_PACK)
     target_include_directories(${PROJECT_NAME} SYSTEM PUBLIC "$<INSTALL_INTERFACE:include/extlibs/WinDepPack>")

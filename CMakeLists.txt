@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.22)
+cmake_minimum_required(VERSION 3.27)
 project(Sofa
     HOMEPAGE_URL https://www.sofa-framework.org/
 ) # Cannot use VERSION with patch like "00"
@@ -290,7 +290,7 @@ sofa_install_git_infos(${PROJECT_NAME} ${CMAKE_CURRENT_SOURCE_DIR})
 # Post-install scripts (must be the last add_subdirectory)
 add_subdirectory(tools/postinstall-fixup)
 
-# Update all executables, (must be after the last add_subdirectory)
+# Update all main and side modules, (must be after the last add_subdirectory)
 if(EMSCRIPTEN)
     message("Setting emscripten properties for components:")
     
@@ -306,6 +306,13 @@ if(EMSCRIPTEN)
             elseif(NOT target_type STREQUAL "UTILITY")
                 target_compile_options(${target} PRIVATE -fPIC)
             endif()
+            
+            if(target_type STREQUAL "EXECUTABLE" OR target_type MATCHES "SHARED_LIBRARY")
+                target_link_options(${target} PRIVATE -g3 -sERROR_ON_UNDEFINED_SYMBOLS=1)
+                target_link_options(${target} PRIVATE -sASYNCIFY=2 -sSAFE_HEAP=1)
+                target_link_options(${target} PRIVATE -sASYNCIFY_IGNORE_INDIRECT=1)
+            endif()
+            
             if(target_type STREQUAL "EXECUTABLE")
                 message(STATUS "Setting emscripten properties for executable ${target}")
                 set_target_properties(${target} PROPERTIES SUFFIX ".html")
@@ -313,6 +320,7 @@ if(EMSCRIPTEN)
                 install(FILES "${CMAKE_BINARY_DIR}/bin/${target}.js" DESTINATION bin COMPONENT applications)
                 install(FILES "${CMAKE_BINARY_DIR}/bin/${target}.wasm" DESTINATION bin COMPONENT applications)
                 # set_target_properties(${target} PROPERTIES VERSION) # fails
+                #target_link_options(${target} PRIVATE  -sASSERTIONS) # for debugging, needs export EMCC_CORES=2 in terminal before linking ninja runSofa*
             elseif(target_type MATCHES "SHARED_LIBRARY")
                 message(STATUS "Setting emscripten properties for library ${target}")
                 target_link_options(${target} PRIVATE -sSIDE_MODULE=1 )
@@ -325,6 +333,51 @@ if(EMSCRIPTEN)
                 message(STATUS "Skipping ${target} of type ${target_type}")
             endif()
 
+            set(STATIC_LIBS Sofa.Simulation.Core Sofa.Helper)
+            if(target_type STREQUAL "EXECUTABLE" AND ${target} MATCHES "Sofa")
+                # Fixup all executables to link static libraries if needed
+                foreach(STATIC_LIB IN LISTS STATIC_LIBS)
+                    get_target_property(CURRENT_LIBS ${target} LINK_LIBRARIES)
+                    get_target_property(INTERFACE_LIBS ${target} INTERFACE_LINK_LIBRARIES)
+                    if(NOT ${STATIC_LIB} IN_LIST INTERFACE_LIBS AND NOT ${STATIC_LIB} IN_LIST CURRENT_LIBS)
+                        get_target_property(TARGET_SOURCE_DIR ${target} SOURCE_DIR)
+                        file(STRINGS "${TARGET_SOURCE_DIR}/CMakeLists.txt" PUBLIC_SIGNATURE
+                            REGEX "target_link_libraries.*PUBLIC"
+                        )
+                        if(PUBLIC_SIGNATURE)
+                            target_link_libraries(${target} PUBLIC ${STATIC_LIB})
+                        else()
+                            target_link_libraries(${target} ${STATIC_LIB})
+                        endif()
+                        get_target_property(CURRENT_LIBS ${target} LINK_LIBRARIES)
+                    endif()
+                endforeach()
+            elseif(target_type MATCHES "SHARED_LIBRARY")
+                # Fixup all shared libraries to unlink static libraries
+                foreach(STATIC_LIB IN LISTS STATIC_LIBS)
+                    get_target_property(CURRENT_LIBS ${target} LINK_LIBRARIES)
+                    get_target_property(INTERFACE_LIBS ${target} INTERFACE_LINK_LIBRARIES)
+                    if(${STATIC_LIB} IN_LIST INTERFACE_LIBS)
+                        list(REMOVE_ITEM INTERFACE_LIBS ${STATIC_LIB})
+                        set_target_properties(${target} PROPERTIES INTERFACE_LINK_LIBRARIES "${INTERFACE_LIBS}")
+                    endif()
+                    if(${STATIC_LIB} IN_LIST CURRENT_LIBS)
+                        list(REMOVE_ITEM CURRENT_LIBS ${STATIC_LIB})
+                        set_target_properties(${target} PROPERTIES LINK_LIBRARIES "${CURRENT_LIBS}")
+                        get_target_property(TARGET_SOURCE_DIR ${target} SOURCE_DIR)
+                        file(STRINGS "${TARGET_SOURCE_DIR}/CMakeLists.txt" PUBLIC_SIGNATURE
+                            REGEX "target_link_libraries.*PUBLIC"
+                        )
+                        if(PUBLIC_SIGNATURE)
+                            target_link_libraries(${target} PUBLIC $<COMPILE_ONLY:${STATIC_LIB}>)
+                        else()
+                            target_link_libraries(${target} $<COMPILE_ONLY:${STATIC_LIB}>)
+                        endif()
+                    endif()
+                endforeach()
+            endif()
+
+            # optimizations: pthreads 
             # # optimizations: pthreads 
             # if(target_type STREQUAL "EXECUTABLE")
             #     target_compile_options(${target} PRIVATE -sPROXY_TO_PTHREAD -sFORCE_FILESYSTEM=1)
