@@ -26,3 +26,10 @@
 *.awk text
 # GitHub syntax highlighting
 pixi.lock linguist-language=YAML linguist-generated=true
+
+# Emscripten fails to find packages outside emsdk sysroot paths due to its CMake cross-compiling toolchain 
+# - Patch CMakeLists.txt files to find Sofa packages with sofa_find_package
+# Run (on CMakeLists.txt file updates): find . -name "CMakeLists.txt" -exec perl -i -pe 's/^find_package(\(Sofa[^\)]+\))/sofa_find_package\1 # git-ignore-line/' {} +
+# - Ensure the above patches do not get committed
+# Run (once): git config filter.ignoreline.clean "sed -re 's/sofa_find_package(.*) # git-ignore-line/find_package\\1/g'"
+CMakeLists.txt filter=ignoreline
