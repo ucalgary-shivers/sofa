@@ -327,7 +327,7 @@ if(EMSCRIPTEN)
                 install(FILES "${CMAKE_BINARY_DIR}/bin/${target}.js" DESTINATION bin COMPONENT applications)
                 install(FILES "${CMAKE_BINARY_DIR}/bin/${target}.wasm" DESTINATION bin COMPONENT applications)
                 # set_target_properties(${target} PROPERTIES VERSION) # fails
-                #target_link_options(${target} PRIVATE  -sASSERTIONS) # for debugging, needs export EMCC_CORES=2 in terminal before linking ninja runSofa*
+                target_link_options(${target} PRIVATE -sASSERTIONS -sALLOW_MEMORY_GROWTH=1) # for debugging, needs export NODE_OPTIONS=--max_old_space_size=7000 in terminal before linking ninja runSofa*
             elseif(target_type MATCHES "SHARED_LIBRARY")
                 message(STATUS "Setting emscripten properties for library ${target}")
                 target_link_options(${target} PRIVATE -sSIDE_MODULE=1 )
