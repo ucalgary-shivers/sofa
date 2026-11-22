@@ -327,7 +327,8 @@ if(EMSCRIPTEN)
                 install(FILES "${CMAKE_BINARY_DIR}/bin/${target}.js" DESTINATION bin COMPONENT applications)
                 install(FILES "${CMAKE_BINARY_DIR}/bin/${target}.wasm" DESTINATION bin COMPONENT applications)
                 # set_target_properties(${target} PROPERTIES VERSION) # fails
-                target_link_options(${target} PRIVATE -sASSERTIONS -sALLOW_MEMORY_GROWTH=1) # for debugging, needs export NODE_OPTIONS=--max_old_space_size=7000 in terminal before linking ninja runSofa*
+                target_link_options(${target} PRIVATE -sALLOW_MEMORY_GROWTH=1)
+                # target_link_options(${target} PRIVATE -sASSERTIONS) # for debugging, needs export NODE_OPTIONS=--max_old_space_size=7000 in terminal before linking ninja runSofa*
             elseif(target_type MATCHES "SHARED_LIBRARY")
                 message(STATUS "Setting emscripten properties for library ${target}")
                 target_link_options(${target} PRIVATE -sSIDE_MODULE=1 )
@@ -387,13 +388,13 @@ if(EMSCRIPTEN)
             endif()
 
             # optimizations: pthreads 
-            # # optimizations: pthreads 
+            # pthread + ALLOW_MEMORY_GROWTH may run non-wasm code slowly, consider -sGROWABLE_ARRAYBUFFERS=2
             # if(target_type STREQUAL "EXECUTABLE")
             #     target_compile_options(${target} PRIVATE -sPROXY_TO_PTHREAD -sFORCE_FILESYSTEM=1)
             #     target_link_options(${target} PRIVATE -sPROXY_TO_PTHREAD -sFORCE_FILESYSTEM=1)
             # endif()
             # if(target_type STREQUAL "EXECUTABLE" OR target_type MATCHES "SHARED_LIBRARY")
-            #     target_compile_options(${target} PRIVATE -pthread -sOFFSCREENCANVAS_SUPPORT)
+            #     target_compile_options(${target} PRIVATE -pthread)
             #     target_link_options(${target} PRIVATE -pthread -sOFFSCREENCANVAS_SUPPORT)
             # endif()
 
@@ -427,7 +428,7 @@ if(SOFA_BUILD_RELEASE_PACKAGE)
     include(CPackComponent)
     include(CPackIFW)
     set(CPACK_PACKAGE_VERSION "${Sofa_VERSION}")
-    set(CPACK_PACKAGE_NAME "SOFA v${CPACK_PACKAGE_VERSION}")
+    set(CPACK_PACKAGE_NAME "SOFA-Robotics-")
     set(CPACK_PACKAGE_VENDOR "The SOFA Team")
     set(CPACK_PACKAGE_CONTACT "contact@sofa-framework.org")
     set(CPACK_PACKAGE_DESCRIPTION "Real-time multi-physics simulation with an emphasis on medical simulation.")
@@ -435,7 +436,7 @@ if(SOFA_BUILD_RELEASE_PACKAGE)
     set(CPACK_PACKAGE_EXECUTABLES "runSofa" "runSofa")
     set(CPACK_PACKAGE_DESCRIPTION_FILE "${CMAKE_SOURCE_DIR}/README.md")
     set(CPACK_PACKAGE_HOMEPAGE_URL "https://www.sofa-framework.org")
-    set(CPACK_PACKAGE_FILE_NAME "SOFA_v${CPACK_PACKAGE_VERSION}")
+    set(CPACK_PACKAGE_FILE_NAME "SOFA-Robotics-")
     if(WIN32)
         set(CPACK_PACKAGE_ICON "${CMAKE_SOURCE_DIR}/share/icons\\\\SOFA.png")
         set(CPACK_PACKAGE_INSTALL_DIRECTORY "SOFA\\\\v${CPACK_PACKAGE_VERSION}")
