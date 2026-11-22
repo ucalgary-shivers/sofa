@@ -343,7 +343,7 @@ if(EMSCRIPTEN)
                 message(STATUS "Skipping ${target} of type ${target_type}")
             endif()
 
-            set(STATIC_LIBS Sofa.Simulation.Core Sofa.Helper)
+            set(STATIC_LIBS Sofa.Simulation.Core Sofa.Core Sofa.Helper)
             if(target_type STREQUAL "EXECUTABLE" AND ${target} MATCHES "Sofa")
                 # Fixup all executables to link static libraries if needed
                 foreach(STATIC_LIB IN LISTS STATIC_LIBS)

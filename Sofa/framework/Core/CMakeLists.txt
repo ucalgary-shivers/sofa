@@ -378,7 +378,11 @@ sofa_find_package(Sofa.Topology REQUIRED)
 sofa_find_package(Sofa.Helper REQUIRED)
 sofa_find_package(Sofa.DefaultType REQUIRED)
 
-add_library(${PROJECT_NAME} SHARED ${HEADER_FILES} ${SOURCE_FILES})
+if(EMSCRIPTEN)
+    add_library(${PROJECT_NAME} STATIC ${HEADER_FILES} ${SOURCE_FILES})
+else()
+    add_library(${PROJECT_NAME} SHARED ${HEADER_FILES} ${SOURCE_FILES})
+endif()
 
 target_link_libraries(${PROJECT_NAME} PUBLIC Sofa.Helper Sofa.Topology Sofa.DefaultType)
 
