@@ -330,9 +330,9 @@ auto PluginManager::loadPluginByName(const std::string& pluginName, const std::s
                                      bool recursive, std::ostream* errlog) -> PluginLoadStatus
 {
     #ifdef __EMSCRIPTEN__
-    const std::string pluginPath = "lib" + pluginName + ".so"; // 
+    const std::string pluginPath = "lib" + pluginName + ".so";
     #else
-    findPlugin(pluginName, suffix, ignoreCase, recursive);
+    const std::string pluginPath = findPlugin(pluginName, suffix, ignoreCase, recursive);
     #endif
 
     if (!pluginPath.empty())

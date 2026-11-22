@@ -154,7 +154,7 @@ void * DynamicLibrary::getSymbolAddress(Handle handle,
 
         Dl_info dli;
         if (::dladdr(symbolAddress, &dli) ==0){
-            msg_warn("DynamicLibrary") << "Symbol address could not be matched to a shared object.";
+            msg_warning("DynamicLibrary") << "Symbol address could not be matched to a shared object.";
         }
         std::filesystem::path dlInfoPath;
         std::filesystem::path handlePath;
