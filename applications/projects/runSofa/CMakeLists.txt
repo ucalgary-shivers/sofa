@@ -111,5 +111,21 @@ sofa_add_targets_to_package(
     )
 
 if(EMSCRIPTEN)
-    target_link_options(${PROJECT_NAME} PUBLIC --embed-file ${CMAKE_SOURCE_DIR}/examples/Demos/fallingSOFA.scn@Demos/fallingSOFA.scn)
+    set(SCN_FILE Demos/fallingSOFA.scn)
+    set(EXAMPLES_PATH ${CMAKE_SOURCE_DIR}/examples)
+    set(SHARE_PATH ${CMAKE_SOURCE_DIR}/share)
+    
+    target_link_options(${PROJECT_NAME} PUBLIC "SHELL:--embed-file ${EXAMPLES_PATH}/${SCN_FILE}@${SCN_FILE}")
+
+    file(READ "${EXAMPLES_PATH}/${SCN_FILE}" FILE_CONTENTS)
+    string(REPLACE "\"" "'" FILE_CONTENTS "${FILE_CONTENTS}")
+    set(TAGS filename texturename)
+    foreach(TAG IN LISTS TAGS)
+        string(REGEX MATCHALL "${TAG}='[^']+'" ALL_MATCHES "${FILE_CONTENTS}")
+        foreach(match IN LISTS ALL_MATCHES)
+            string(REGEX REPLACE "${TAG}='([^']+)'" "\\1" ASSET_FILE "${match}")
+            message(STATUS "Embedding asset file: ${ASSET_FILE}")
+            target_link_options(${PROJECT_NAME} PUBLIC "SHELL:--embed-file ${SHARE_PATH}/${ASSET_FILE}@${ASSET_FILE}")
+        endforeach()
+    endforeach()
 endif()
