@@ -99,11 +99,15 @@ bool MeshOBJLoader::doLoad()
     const char* filename = d_filename.getFullPath().c_str();
     std::ifstream file(filename);
 
+    #ifdef __EMSCRIPTEN__
+    printf("Loading %s\n", filename);
+    #else
     if (!file.good())
     {
-        msg_error() << "Cannot read file '" << d_filename << "'.";
+        msg_error() << "Cannot read file '" << d_filename << "' " << std::strerror(errno);
         return false;
     }
+    #endif
 
     // -- Reading file
     fileRead = readOBJ (file,filename);
@@ -206,6 +210,7 @@ bool MeshOBJLoader::readOBJ (std::ifstream &file, const char* filename)
     std::string line;
     while( std::getline(file,line) )
     {
+        // printf("Line %s\n", filename);
         if (line.empty()) continue;
         std::istringstream values(line);
         std::string token;
