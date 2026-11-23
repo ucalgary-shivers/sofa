@@ -337,7 +337,12 @@ if(EMSCRIPTEN)
                 install(FILES "${CMAKE_BINARY_DIR}/bin/${target}.wasm" DESTINATION bin COMPONENT applications)
                 # set_target_properties(${target} PROPERTIES VERSION) # fails
                 target_link_options(${target} PRIVATE -sALLOW_MEMORY_GROWTH=1)
-                # target_link_options(${target} PRIVATE -sASSERTIONS) # for debugging, needs export NODE_OPTIONS=--max_old_space_size=7000 in terminal before linking ninja runSofa*
+                if(${target} MATCHES "runSofa")
+                    target_link_options(${target} PRIVATE -sEXPORT_ES6)
+                    target_link_options(${target} PRIVATE -sENVIRONMENT=web,worker)
+                    get_target_property(RUNSOFA_SOURCE_DIR "runSofa" SOURCE_DIR)
+                    target_link_options(${target} PRIVATE "SHELL:--shell-file ${RUNSOFA_SOURCE_DIR}/runSofaShell.html")
+                endif()
             elseif(target_type MATCHES "SHARED_LIBRARY")
                 message(STATUS "Setting emscripten properties for library ${target}")
                 target_link_options(${target} PRIVATE -sSIDE_MODULE=1 )
