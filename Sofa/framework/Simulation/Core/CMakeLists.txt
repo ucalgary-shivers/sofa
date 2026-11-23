@@ -351,7 +351,11 @@ set(DEPRECATED_HEADER_FILES
 
 sofa_find_package(Sofa.Core REQUIRED)
 
-add_library(${PROJECT_NAME} SHARED ${HEADER_FILES} ${SOURCE_FILES})
+if(EMSCRIPTEN)
+    add_library(${PROJECT_NAME} STATIC ${HEADER_FILES} ${SOURCE_FILES})
+else()
+    add_library(${PROJECT_NAME} SHARED ${HEADER_FILES} ${SOURCE_FILES})
+endif()
 
 target_link_libraries(${PROJECT_NAME} PUBLIC Sofa.Core)
 target_link_libraries(${PROJECT_NAME} PRIVATE nlohmann_json::nlohmann_json)

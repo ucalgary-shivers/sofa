@@ -11,6 +11,9 @@ if(NOT TARGET nlohmann_json AND SOFA_ALLOW_FETCH_DEPENDENCIES)
     message("Sofa.GUI.Common: DEPENDENCY nlohmann_json NOT FOUND. SOFA_ALLOW_FETCH_DEPENDENCIES is ON, fetching nlohmann_json...")
 
     set(JSON_BuildTests OFF CACHE INTERNAL "")
+    if(EMSCRIPTEN)
+        set(JSON_Install ON CACHE INTERNAL "")
+    endif()
 
     sofa_fetch_dependency(nlohmann_json
             GIT_REPOSITORY https://github.com/nlohmann/json.git
@@ -215,6 +218,8 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL Darwin)
     list(APPEND SOURCE_FILES  ${SRC_ROOT}/system/FileMonitor_macosx.cpp)
 elseif(CMAKE_SYSTEM_NAME STREQUAL Windows)
     list(APPEND SOURCE_FILES  ${SRC_ROOT}/system/FileMonitor_windows.cpp)
+elseif(EMSCRIPTEN)
+    list(FILTER HEADER_FILES EXCLUDE REGEX "${SRC_ROOT}/system/FileMonitor.h")
 endif()
 
 if (SOFA_TRACY)
@@ -222,12 +227,16 @@ if (SOFA_TRACY)
     list(APPEND SOURCE_FILES ${SRC_ROOT}/logging/TracyMessageHandler.cpp)
 endif()
 
-sofa_find_package(Sofa.Config REQUIRED)
+find_package(Sofa.Config REQUIRED)
 sofa_find_package(Sofa.Type REQUIRED)
 sofa_find_package(Sofa.Topology REQUIRED)
 
 # LIBRARY
-add_library(${PROJECT_NAME} SHARED ${HEADER_FILES} ${SOURCE_FILES})
+if(EMSCRIPTEN)  
+    add_library(${PROJECT_NAME} STATIC ${HEADER_FILES} ${SOURCE_FILES})
+else()
+    add_library(${PROJECT_NAME} SHARED ${HEADER_FILES} ${SOURCE_FILES})
+endif()
 
 if((CMAKE_SYSTEM_NAME STREQUAL Windows) AND SOFA_USE_DEPENDENCY_PACK)
     target_include_directories(${PROJECT_NAME} SYSTEM PUBLIC "$<INSTALL_INTERFACE:include/extlibs/WinDepPack>")

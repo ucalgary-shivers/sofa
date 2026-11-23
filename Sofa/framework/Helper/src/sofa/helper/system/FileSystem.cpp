@@ -52,6 +52,10 @@
 # include <sys/wait.h>
 #endif
 
+#ifdef __EMSCRIPTEN__
+# include <emscripten.h>
+#endif
+
 #include <cassert>
 #include <sofa/helper/system/SetDirectory.h>
 
@@ -451,6 +455,31 @@ std::string FileSystem::append(const std::string_view& existingPath, const std::
     return std::string(existingPath) + "/" + std::string(toAppend);
 }
 
+#ifdef __EMSCRIPTEN__
+        // JavaScript helper to download the file from Emscripten's virtual MEMFS
+        EM_JS(void, emOpenFileWithDefaultApplication, (const char* filename), {
+            const name = UTF8ToString(filename);
+            
+            // Read the file data from Emscripten's virtual file system
+            const data = FS.readFile(name);
+            
+            // Create a Blob and an object URL
+            const blob = new Blob([data], { });
+            const url = URL.createObjectURL(blob);
+            
+            // Create a hidden anchor element to trigger the download/open action
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = name;
+            document.body.appendChild(a);
+            a.click();
+            
+            // Clean up
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+#endif
+
 bool FileSystem::openFileWithDefaultApplication(const std::string& filename)
 {
     bool success = false;
@@ -476,6 +505,8 @@ bool FileSystem::openFileWithDefaultApplication(const std::string& filename)
             if (waitpid(pid, &status, 0) != -1 && WIFEXITED(status) && WEXITSTATUS(status) == 0)
                 success = true;
         }
+#elif defined(__EMSCRIPTEN__)
+        emOpenFileWithDefaultApplication(filename.c_str());
 #else
         pid_t pid;
         const char* argv[] = {"xdg-open", filename.c_str(), nullptr};

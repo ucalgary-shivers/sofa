@@ -25,12 +25,13 @@
 #include <sofa/simulation/task/MainTaskSchedulerRegistry.h>
 
 #include <thread>
+#include <algorithm>
 
 namespace sofa::simulation
 {
 unsigned TaskScheduler::GetHardwareThreadsCount()
 {
-    return std::thread::hardware_concurrency() / 2;
+    return std::max(std::thread::hardware_concurrency() / 2, 1u);
 }
 
 bool TaskScheduler::addTask(Task::Status& status, const std::function<void()>& task)

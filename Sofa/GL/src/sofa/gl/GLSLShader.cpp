@@ -32,6 +32,7 @@
 namespace sofa::gl
 {
 
+#ifndef __EMSCRIPTEN__
 class GLSLFileListener : public helper::system::FileEventListener
 {
 public:
@@ -52,6 +53,7 @@ public:
         m_glslshader->InitShaders() ;
     }
 };
+#endif
 
 
 bool GLSLIsSupported = false;
@@ -97,16 +99,20 @@ GLSLShader::GLSLShader()
     geometry_vertices_out = -1;
 #endif
     header = "";
+    #ifndef __EMSCRIPTEN__
     m_filelistener = std::shared_ptr<helper::system::FileEventListener>(new GLSLFileListener(this)) ;
+    #endif
 }
 
 GLSLShader::~GLSLShader()
 {
     // BUGFIX: if the GL context is gone, this can crash the application on exit -- Jeremie A.
     //Release();
+    #ifndef __EMSCRIPTEN__
     if(m_filelistener){
         helper::system::FileMonitor::removeListener(m_filelistener.get());
     }
+    #endif
 }
 
 void GLSLShader::AddHeader(const std::string &header)
@@ -125,16 +131,20 @@ void GLSLShader::SetShaderFileName(GLint target, const std::string& filename)
 {
     if (filename.empty())
     {
+        #ifndef __EMSCRIPTEN__
         if(m_filelistener && !m_hShaderContents[target].filename.empty())
             helper::system::FileMonitor::removeFileListener(m_hShaderContents[target].filename, m_filelistener.get()) ;
+        #endif
         m_hShaderContents.erase(target);
     }else{
         ShaderContents sc;
         sc.filename = filename;
         sc.text = LoadTextFile(filename);
         m_hShaderContents[target] = sc;
+        #ifndef __EMSCRIPTEN__
         if(m_filelistener)
             helper::system::FileMonitor::addFile(filename, m_filelistener.get()) ;
+        #endif
     }
 }
 
@@ -353,7 +363,7 @@ void GLSLShader::InitShaders()
         glAttachObjectARB(m_hProgramObject, it->second);
     }
 
-#if defined(GL_EXT_geometry_shader4)
+#if defined(GL_EXT_geometry_shader4) && ! defined(__EMSCRIPTEN__)
     if (GetGeometryShaderID())
     {
         if (geometry_input_type != -1) glProgramParameteriEXT(m_hProgramObject, GL_GEOMETRY_INPUT_TYPE_EXT, geometry_input_type );

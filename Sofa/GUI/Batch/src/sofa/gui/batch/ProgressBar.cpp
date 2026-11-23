@@ -37,7 +37,11 @@ ProgressBar::ProgressBar(const int nbIterations)
             indicators::option::Fill{"#"},
             indicators::option::Lead{"#"},
             indicators::option::Remainder{"-"},
+            #ifdef __EMSCRIPTEN__
+            indicators::option::End{"]\n"},
+            #else
             indicators::option::End{"]"},
+            #endif
             indicators::option::PostfixText{},
             indicators::option::ForegroundColor{indicators::Color::cyan},
             indicators::option::FontStyles{std::vector<indicators::FontStyle>{indicators::FontStyle::bold}}
@@ -50,7 +54,11 @@ ProgressBar::ProgressBar(const int nbIterations)
             indicators::option::Start{"\r["},
             indicators::option::Fill{"."},
             indicators::option::Lead{"<==>"},
+            #ifdef __EMSCRIPTEN__
+            indicators::option::End{"]\n"},
+            #else
             indicators::option::End{"]"},
+            #endif
             indicators::option::PostfixText{},
             indicators::option::ForegroundColor{indicators::Color::cyan},
             indicators::option::FontStyles{std::vector<indicators::FontStyle>{indicators::FontStyle::bold}}

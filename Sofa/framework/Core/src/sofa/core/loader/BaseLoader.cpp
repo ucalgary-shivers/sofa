@@ -62,6 +62,9 @@ bool BaseLoader::canLoad()
         return false;
     }
 
+    #ifdef __EMSCRIPTEN__
+    return true;
+    #endif
 
     // -- Check if file exist:
     const char* filename = d_filename.getFullPath().c_str();

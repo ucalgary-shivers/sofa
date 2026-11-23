@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.22)
+cmake_minimum_required(VERSION 3.27)
 project(Sofa
     HOMEPAGE_URL https://www.sofa-framework.org/
 ) # Cannot use VERSION with patch like "00"
@@ -139,6 +139,17 @@ if(UNIX)
     endif()
 endif(UNIX)
 
+option(RELOCATE_EMSCRIPTEN_LIB_TO_BIN "Relocate emscripten libraries to bin" ON)
+if(EMSCRIPTEN)
+    if(RELOCATE_EMSCRIPTEN_LIB_TO_BIN)
+        message(STATUS "Relocating Emscripten libraries to bin")
+        set(EMSCRIPTEN_LIB_DIR "bin")
+    else()
+        set(EMSCRIPTEN_LIB_DIR "lib")
+    endif()
+    set(CMAKE_INSTALL_LIBDIR ${EMSCRIPTEN_LIB_DIR})
+    link_directories(${CMAKE_BINARY_DIR}/${EMSCRIPTEN_LIB_DIR}) # libraries relocated to bin at end of this CMakeLists.txt
+endif()
 
 ### Windows config
 if(MSVC)
@@ -286,6 +297,133 @@ sofa_install_git_infos(${PROJECT_NAME} ${CMAKE_CURRENT_SOURCE_DIR})
 # Post-install scripts (must be the last add_subdirectory)
 add_subdirectory(tools/postinstall-fixup)
 
+# Update all main and side modules, (must be after the last add_subdirectory)
+if(EMSCRIPTEN)
+    message("Setting emscripten properties for components:")
+    
+    function(set_component_properties_recursive dir)
+        get_property(targets DIRECTORY "${dir}" PROPERTY BUILDSYSTEM_TARGETS)
+        foreach(target IN LISTS targets)
+            get_target_property(target_type ${target} TYPE)
+            # message("target_type ${target_type}")
+
+            # default
+            if(target_type MATCHES "INTERFACE")
+                target_compile_options(${target} INTERFACE -fPIC)
+            elseif(NOT target_type STREQUAL "UTILITY")
+                target_compile_options(${target} PRIVATE -fPIC)
+            endif()
+            
+            # debug
+            if(target_type STREQUAL "EXECUTABLE" OR target_type MATCHES "SHARED_LIBRARY")
+                target_link_options(${target} PRIVATE -g3 -sERROR_ON_UNDEFINED_SYMBOLS=1) 
+            endif()
+            if(target_type STREQUAL "EXECUTABLE")
+                # target_link_options(${target} PRIVATE -sASSERTIONS) # for debugging, needs export NODE_OPTIONS=--max_old_space_size=7000 in terminal before linking ninja runSofa*
+            endif()
+
+            # dynamic library loading - async dlopen
+            if(target_type STREQUAL "EXECUTABLE" OR target_type MATCHES "SHARED_LIBRARY")
+                target_link_options(${target} PRIVATE -sASYNCIFY=2 -sSAFE_HEAP=1) # -sASYNCIFY=2 equals -sJSPI
+                target_link_options(${target} PRIVATE -sASYNCIFY_IGNORE_INDIRECT=1)
+            endif()
+            
+            # module splitting
+            if(target_type STREQUAL "EXECUTABLE")
+                message(STATUS "Setting emscripten properties for executable ${target}")
+                set_target_properties(${target} PROPERTIES SUFFIX ".html")
+                target_link_options(${target} PRIVATE -sMAIN_MODULE=1)# -sFULL_ES3=1)
+                install(FILES "${CMAKE_BINARY_DIR}/bin/${target}.js" DESTINATION bin COMPONENT applications)
+                install(FILES "${CMAKE_BINARY_DIR}/bin/${target}.wasm" DESTINATION bin COMPONENT applications)
+                # set_target_properties(${target} PROPERTIES VERSION) # fails
+                target_link_options(${target} PRIVATE -sALLOW_MEMORY_GROWTH=1)
+                if(${target} MATCHES "runSofa")
+                    target_link_options(${target} PRIVATE -sEXPORT_ES6)
+                    target_link_options(${target} PRIVATE -sENVIRONMENT=web,worker)
+                    get_target_property(RUNSOFA_SOURCE_DIR "runSofa" SOURCE_DIR)
+                    target_link_options(${target} PRIVATE "SHELL:--shell-file ${RUNSOFA_SOURCE_DIR}/runSofaShell.html")
+                endif()
+            elseif(target_type MATCHES "SHARED_LIBRARY")
+                message(STATUS "Setting emscripten properties for library ${target}")
+                target_link_options(${target} PRIVATE -sSIDE_MODULE=1 )
+                if(RELOCATE_EMSCRIPTEN_LIB_TO_BIN)
+                    set_target_properties(${target} PROPERTIES
+                        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+                        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+                        ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+                    )
+                endif()
+            else()
+                message(STATUS "Skipping ${target} of type ${target_type}")
+            endif()
+
+            # dynamic library loading - need to be initiated from main module
+            set(STATIC_LIBS Sofa.Simulation.Core Sofa.Core Sofa.Helper)
+            if(target_type STREQUAL "EXECUTABLE" AND ${target} MATCHES "Sofa")
+                # Fixup all executables to link static libraries if needed
+                foreach(STATIC_LIB IN LISTS STATIC_LIBS)
+                    get_target_property(CURRENT_LIBS ${target} LINK_LIBRARIES)
+                    get_target_property(INTERFACE_LIBS ${target} INTERFACE_LINK_LIBRARIES)
+                    if(NOT ${STATIC_LIB} IN_LIST INTERFACE_LIBS AND NOT ${STATIC_LIB} IN_LIST CURRENT_LIBS)
+                        get_target_property(TARGET_SOURCE_DIR ${target} SOURCE_DIR)
+                        file(STRINGS "${TARGET_SOURCE_DIR}/CMakeLists.txt" PUBLIC_SIGNATURE
+                            REGEX "target_link_libraries.*PUBLIC"
+                        )
+                        if(PUBLIC_SIGNATURE)
+                            target_link_libraries(${target} PUBLIC ${STATIC_LIB})
+                        else()
+                            target_link_libraries(${target} ${STATIC_LIB})
+                        endif()
+                        get_target_property(CURRENT_LIBS ${target} LINK_LIBRARIES)
+                    endif()
+                endforeach()
+            elseif(target_type MATCHES "SHARED_LIBRARY")
+                # Fixup all shared libraries to unlink static libraries
+                foreach(STATIC_LIB IN LISTS STATIC_LIBS)
+                    get_target_property(CURRENT_LIBS ${target} LINK_LIBRARIES)
+                    get_target_property(INTERFACE_LIBS ${target} INTERFACE_LINK_LIBRARIES)
+                    if(${STATIC_LIB} IN_LIST INTERFACE_LIBS)
+                        list(REMOVE_ITEM INTERFACE_LIBS ${STATIC_LIB})
+                        set_target_properties(${target} PROPERTIES INTERFACE_LINK_LIBRARIES "${INTERFACE_LIBS}")
+                    endif()
+                    if(${STATIC_LIB} IN_LIST CURRENT_LIBS)
+                        list(REMOVE_ITEM CURRENT_LIBS ${STATIC_LIB})
+                        set_target_properties(${target} PROPERTIES LINK_LIBRARIES "${CURRENT_LIBS}")
+                        get_target_property(TARGET_SOURCE_DIR ${target} SOURCE_DIR)
+                        file(STRINGS "${TARGET_SOURCE_DIR}/CMakeLists.txt" PUBLIC_SIGNATURE
+                            REGEX "target_link_libraries.*PUBLIC"
+                        )
+                        if(PUBLIC_SIGNATURE)
+                            target_link_libraries(${target} PUBLIC $<COMPILE_ONLY:${STATIC_LIB}>)
+                        else()
+                            target_link_libraries(${target} $<COMPILE_ONLY:${STATIC_LIB}>)
+                        endif()
+                    endif()
+                endforeach()
+            endif()
+
+            # optimizations: pthreads 
+            # pthread + ALLOW_MEMORY_GROWTH may run non-wasm code slowly, consider -sGROWABLE_ARRAYBUFFERS=2
+            # if(target_type STREQUAL "EXECUTABLE")
+            #     target_compile_options(${target} PRIVATE -sPROXY_TO_PTHREAD -sFORCE_FILESYSTEM=1)
+            #     target_link_options(${target} PRIVATE -sPROXY_TO_PTHREAD -sFORCE_FILESYSTEM=1)
+            # endif()
+            # if(target_type STREQUAL "EXECUTABLE" OR target_type MATCHES "SHARED_LIBRARY")
+            #     target_compile_options(${target} PRIVATE -pthread)
+            #     target_link_options(${target} PRIVATE -pthread -sOFFSCREENCANVAS_SUPPORT)
+            # endif()
+
+        endforeach()
+
+        get_property(subdirs DIRECTORY "${dir}" PROPERTY SUBDIRECTORIES)
+        foreach(subdir IN LISTS subdirs)
+            set_component_properties_recursive("${subdir}")
+        endforeach()
+    endfunction()
+
+    set_component_properties_recursive("${CMAKE_CURRENT_SOURCE_DIR}")
+endif(EMSCRIPTEN)
+
 if(SOFA_BUILD_RELEASE_PACKAGE)
     # if building release package using Pixi, build a bundle of licence files of all 
     # dependencies that will be embedded in the package
@@ -305,7 +443,7 @@ if(SOFA_BUILD_RELEASE_PACKAGE)
     include(CPackComponent)
     include(CPackIFW)
     set(CPACK_PACKAGE_VERSION "${Sofa_VERSION}")
-    set(CPACK_PACKAGE_NAME "SOFA v${CPACK_PACKAGE_VERSION}")
+    set(CPACK_PACKAGE_NAME "SOFA-Robotics-")
     set(CPACK_PACKAGE_VENDOR "The SOFA Team")
     set(CPACK_PACKAGE_CONTACT "contact@sofa-framework.org")
     set(CPACK_PACKAGE_DESCRIPTION "Real-time multi-physics simulation with an emphasis on medical simulation.")
@@ -313,7 +451,7 @@ if(SOFA_BUILD_RELEASE_PACKAGE)
     set(CPACK_PACKAGE_EXECUTABLES "runSofa" "runSofa")
     set(CPACK_PACKAGE_DESCRIPTION_FILE "${CMAKE_SOURCE_DIR}/README.md")
     set(CPACK_PACKAGE_HOMEPAGE_URL "https://www.sofa-framework.org")
-    set(CPACK_PACKAGE_FILE_NAME "SOFA_v${CPACK_PACKAGE_VERSION}")
+    set(CPACK_PACKAGE_FILE_NAME "SOFA-Robotics-")
     if(WIN32)
         set(CPACK_PACKAGE_ICON "${CMAKE_SOURCE_DIR}/share/icons\\\\SOFA.png")
         set(CPACK_PACKAGE_INSTALL_DIRECTORY "SOFA\\\\v${CPACK_PACKAGE_VERSION}")
@@ -330,6 +468,9 @@ if(SOFA_BUILD_RELEASE_PACKAGE)
         else()
             set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_FILE_NAME}_Linux")
         endif()
+    endif()
+    if(EMSCRIPTEN)
+        set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_FILE_NAME}_Emscripten")
     endif()
     set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/LICENSE-LGPL.md")
     set(CPACK_RESOURCE_FILE_README "${CMAKE_SOURCE_DIR}/README.md")

@@ -38,7 +38,9 @@
 # include <string.h>            // for strerror()
 # include <unistd.h>            // for readlink()
 # include <errno.h>
+#ifndef __EMSCRIPTEN__
 # include <linux/limits.h>      // for PATH_MAX
+#endif
 # include <cstdlib>
 # include <sys/types.h>
 # include <pwd.h>
@@ -117,6 +119,8 @@ static std::string computeExecutablePath()
         msg_error("Utils::computeExecutablePath()") << "realpath() failed";
     }
     path = std::string(&real_path[0]);
+
+#elif defined(__EMSCRIPTEN__)
 
 #else  // Linux
     std::vector<char> buffer(PATH_MAX);

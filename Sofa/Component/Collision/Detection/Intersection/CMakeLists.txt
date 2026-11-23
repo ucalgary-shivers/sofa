@@ -60,6 +60,7 @@ if(NOT tight_inclusion_FOUND AND SOFA_ALLOW_FETCH_DEPENDENCIES)
             GIT_REPOSITORY https://github.com/sofa-framework/Tight-Inclusion
             GIT_TAG        v1.0.6-export-target
     )
+    install(TARGETS tight_inclusion LIBRARY DESTINATION ${LIB_INSTALL_DIR})
 
 elseif(NOT tight_inclusion_FOUND )
     message(FATAL_ERROR "Sofa.Component.Collision.Detection.Intersection: tight_inclusion is not found. SOFA_ALLOW_FETCH_DEPENDENCIES is OFF and thus cannot be fetched. Provide a tight_inclusion library installation, or enable SOFA_ALLOW_FETCH_DEPENDENCIES to fix this issue.")

@@ -22,6 +22,7 @@
 #include <sofa/helper/system/DynamicLibrary.h>
 #include <sofa/helper/system/FileSystem.h>
 using sofa::helper::system::FileSystem;
+#include <sofa/helper/logging/Messaging.h>
 #ifdef WIN32
 # include <Windows.h>
 #else
@@ -30,6 +31,31 @@ using sofa::helper::system::FileSystem;
 #include <string>
 #include <filesystem>
 #include <sstream>
+
+#if defined(__EMSCRIPTEN__)
+
+#include <emscripten.h>
+
+EM_ASYNC_JS(int, fetchAsset, (const char* load_url_ptr, const char* save_path_ptr), {
+    const url = UTF8ToString(load_url_ptr);
+    const path = UTF8ToString(save_path_ptr);
+    try {
+        const response = await fetch(url);
+        if (!response.ok) {
+            out("response no OK");
+            return 0;
+        }
+        const buffer = await response.arrayBuffer();
+        FS.writeFile(path, new Uint8Array(buffer));
+        return 1;
+    } catch (e) {
+        console.error("Failed to fetch side module:", e);
+        return 0;
+    }
+    return 1;
+});
+
+#endif
 
 namespace sofa::helper::system
 {
@@ -65,9 +91,15 @@ const std::string& DynamicLibrary::Handle::filename() const
     return *m_filename;
 }
 
-
 DynamicLibrary::Handle DynamicLibrary::load(const std::string& filename)
 {
+#if defined(__EMSCRIPTEN__)
+    // We need to first download the side module for access from main module
+    const std::string savePath = "/" + filename;
+    if(!fetchAsset(filename.c_str(),savePath.c_str())){
+         msg_error("DynamicLibrary") << "Error downloading plugin" << filename;
+    }
+#endif
 # if defined(WIN32)
     const std::string p = FileSystem::cleanPath(filename, FileSystem::BACKSLASH);
     void *handle = ::LoadLibraryA(filename.c_str());
@@ -79,8 +111,10 @@ DynamicLibrary::Handle DynamicLibrary::load(const std::string& filename)
 # else
     void *handle = ::dlopen(filename.c_str(), RTLD_NOW | RTLD_GLOBAL);
 # endif
-    if (handle == nullptr)
+    if (handle == nullptr){
+        msg_error("DynamicLibrary") << "Error loading library " << filename;
         fetchLastError();
+    }
     return handle ? Handle(filename, handle) : Handle();
 }
 
@@ -101,6 +135,7 @@ void * DynamicLibrary::getSymbolAddress(Handle handle,
 {
     if (!handle.isValid()) {
         m_lastError = "DynamicLibrary::getSymbolAddress(): invalid handle";
+        msg_error("DynamicLibrary") << "Error getting symbol " << m_lastError;
         return nullptr;
     }
 # if defined(WIN32)
@@ -109,14 +144,18 @@ void * DynamicLibrary::getSymbolAddress(Handle handle,
 # else
     void *symbolAddress = ::dlsym(handle.m_realHandle, symbol.c_str());
 # endif
-    if(symbolAddress == nullptr)
+    if(symbolAddress == nullptr){
+        msg_error("DynamicLibrary") << "Error: null symbol address for " << symbol;
         fetchLastError();
-#if !defined (WIN32)
+    }
+#if !defined (WIN32) && !defined (__EMSCRIPTEN__)
     else // checking that the symbol really comes from the provided library
     {
 
         Dl_info dli;
-        ::dladdr(symbolAddress, &dli);
+        if (::dladdr(symbolAddress, &dli) ==0){
+            msg_warning("DynamicLibrary") << "Symbol address could not be matched to a shared object.";
+        }
         std::filesystem::path dlInfoPath;
         std::filesystem::path handlePath;
         std::ostringstream oss;
@@ -129,6 +168,7 @@ void * DynamicLibrary::getSymbolAddress(Handle handle,
         catch(std::filesystem::filesystem_error& error)
         {
             oss << "An exception was caught when trying to find the real path of the library with the following message : " << error.what();
+            msg_error("DynamicLibrary") << "Error getting real path for library: " << error.what();
 
             // paths are broken, we cannot check if this symbol comes from this lib
             symbolAddress = nullptr;
@@ -190,6 +230,7 @@ void DynamicLibrary::fetchLastError()
     const char *dlopenError = ::dlerror();
     m_lastError = dlopenError ? dlopenError : "";
 #endif
+    msg_error("DynamicLibrary") << "Last error: " << m_lastError;
 }
 
 

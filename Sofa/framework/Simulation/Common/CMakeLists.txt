@@ -39,7 +39,23 @@ set(SOURCE_FILES
 
 sofa_find_package(Sofa.Core REQUIRED)
 sofa_find_package(Sofa.Simulation.Core REQUIRED)
-sofa_find_package(TinyXML2 REQUIRED)
+sofa_find_package(TinyXML2 QUIET)
+
+if(NOT TinyXML2_FOUND AND SOFA_ALLOW_FETCH_DEPENDENCIES)
+    set(PACKAGE "Sofa.Simulation.Common")
+    set(DEPENDENCY "TinyXML2")
+    set(VERSION "11.0.0")
+    set(GIT_TAG "${VERSION}")
+    set(GIT_REPOSITORY "https://github.com/leethomason/tinyxml2.git")
+    message("${PACKAGE}: DEPENDENCY ${DEPENDENCY} NOT FOUND. SOFA_ALLOW_FETCH_DEPENDENCIES is ON, fetching ${DEPENDENCY}...")
+    set(tinyxml2_BUILD_TESTING OFF CACHE INTERNAL "")
+    sofa_fetch_dependency(${DEPENDENCY}
+            GIT_REPOSITORY ${GIT_REPOSITORY}
+            GIT_TAG        ${GIT_TAG}
+    )
+elseif(NOT TinyXML2_FOUND)
+    message(FATAL_ERROR "${PACKAGE}: DEPENDENCY ${DEPENDENCY} NOT FOUND. SOFA_ALLOW_FETCH_DEPENDENCIES is OFF and thus cannot be fetched. Install ${DEPENDENCY} (version>=${VERSION}), or enable SOFA_ALLOW_FETCH_DEPENDENCIES to fix this issue.")
+endif()
 
 if(UNIX AND NOT APPLE)
     sofa_install_libraries(PATHS ${TinyXML2_LIBRARY})

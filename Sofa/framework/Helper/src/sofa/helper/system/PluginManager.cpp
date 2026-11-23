@@ -207,6 +207,7 @@ PluginManager::PluginLoadStatus PluginManager::loadPluginByPath(const std::strin
         return PluginLoadStatus::ALREADY_LOADED;
     }
 
+    #ifndef __EMSCRIPTEN__
     if (!FileSystem::exists(pluginPath))
     {
         const std::string msg = "File not found: " + pluginPath;
@@ -214,6 +215,7 @@ PluginManager::PluginLoadStatus PluginManager::loadPluginByPath(const std::strin
         if (errlog) (*errlog) << msg << std::endl;
         return PluginLoadStatus::PLUGIN_FILE_NOT_FOUND;
     }
+    #endif
 
     const DynamicLibrary::Handle d  = DynamicLibrary::load(pluginPath);
     Plugin p;
@@ -244,17 +246,22 @@ PluginManager::PluginLoadStatus PluginManager::loadPluginByPath(const std::strin
             return PluginLoadStatus::ALREADY_LOADED;
         }
 
+        #ifndef __EMSCRIPTEN__
         [[maybe_unused]] const auto moduleDescriptionResult = getPluginEntry(p.getModuleDescription,d);
         [[maybe_unused]] const auto moduleLicenseResult = getPluginEntry(p.getModuleLicense,d);
         [[maybe_unused]] const auto moduleComponentListResult = getPluginEntry(p.getModuleComponentList,d);
         [[maybe_unused]] const auto moduleVersionResult = getPluginEntry(p.getModuleVersion,d);
+        #endif
     }
 
     p.dynamicLibrary = d;
     m_pluginMap[pluginPath] = p;
+    #ifndef __EMSCRIPTEN__
     p.initExternalModule();
+    #endif
 
     // check if the plugin is initialized (if it can report this information)
+    #ifndef __EMSCRIPTEN__
     if (getPluginEntry(p.moduleIsInitialized, d))
     {
         if (!p.moduleIsInitialized())
@@ -267,8 +274,7 @@ PluginManager::PluginLoadStatus PluginManager::loadPluginByPath(const std::strin
             return PluginLoadStatus::INIT_ERROR;
         }
     }
-
-    msg_info("PluginManager") << "Loaded plugin: " << pluginPath;
+    #endif
 
     for (const auto& [key, callback] : m_onPluginLoadedCallbacks)
     {
@@ -323,7 +329,11 @@ std::string PluginManager::GetPluginNameFromPath(const std::string& pluginPath)
 auto PluginManager::loadPluginByName(const std::string& pluginName, const std::string& suffix, bool ignoreCase,
                                      bool recursive, std::ostream* errlog) -> PluginLoadStatus
 {
+    #ifdef __EMSCRIPTEN__
+    const std::string pluginPath = "lib" + pluginName + ".so";
+    #else
     const std::string pluginPath = findPlugin(pluginName, suffix, ignoreCase, recursive);
+    #endif
 
     if (!pluginPath.empty())
     {
@@ -676,6 +686,7 @@ auto PluginManager::registerPlugin(const std::string& plugin, const std::string&
     // - or it was loaded implicitly by the OS (static dependency)
     
     // If it was already loaded by the OS before, this will just update the pluginmanager's map
+    msg_info("PluginManager") << "Register plugin: " << plugin;
     return loadPlugin(plugin, suffix, ignoreCase, recursive, errlog);
 }
 

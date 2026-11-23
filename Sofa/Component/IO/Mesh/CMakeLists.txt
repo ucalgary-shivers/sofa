@@ -53,13 +53,20 @@ set(SOURCE_FILES
 )
 
 sofa_find_package(TinyXML2 REQUIRED) # BaseVTKReader
-sofa_find_package(ZLIB REQUIRED) # BlenderExporter
+if(NOT EMSCRIPTEN)
+    sofa_find_package(ZLIB REQUIRED) # BlenderExporter
+endif()
 sofa_find_package(Sofa.Simulation.Core REQUIRED)
 
 add_library(${PROJECT_NAME} SHARED ${HEADER_FILES} ${SOURCE_FILES} ${WRAPPER_FILES})
 target_link_libraries(${PROJECT_NAME} PUBLIC Sofa.Simulation.Core)
 target_link_libraries(${PROJECT_NAME} PRIVATE tinyxml2::tinyxml2)
-target_link_libraries(${PROJECT_NAME} PUBLIC ZLIB::ZLIB)
+if(EMSCRIPTEN)
+    target_compile_options(${PROJECT_NAME} PUBLIC -fPIC --use-port=zlib)
+    target_link_options(${PROJECT_NAME} PUBLIC --use-port=zlib)
+else()
+    target_link_libraries(${PROJECT_NAME} PUBLIC ZLIB::ZLIB)
+endif()
 if(CMAKE_SYSTEM_NAME STREQUAL Windows)
     sofa_install_libraries(TARGETS ZLIB::ZLIB)
 endif()
