@@ -314,12 +314,21 @@ if(EMSCRIPTEN)
                 target_compile_options(${target} PRIVATE -fPIC)
             endif()
             
+            # debug
             if(target_type STREQUAL "EXECUTABLE" OR target_type MATCHES "SHARED_LIBRARY")
-                target_link_options(${target} PRIVATE -g3 -sERROR_ON_UNDEFINED_SYMBOLS=1)
-                target_link_options(${target} PRIVATE -sASYNCIFY=2 -sSAFE_HEAP=1)
+                target_link_options(${target} PRIVATE -g3 -sERROR_ON_UNDEFINED_SYMBOLS=1) 
+            endif()
+            if(target_type STREQUAL "EXECUTABLE")
+                # target_link_options(${target} PRIVATE -sASSERTIONS) # for debugging, needs export NODE_OPTIONS=--max_old_space_size=7000 in terminal before linking ninja runSofa*
+            endif()
+
+            # dynamic library loading - async dlopen
+            if(target_type STREQUAL "EXECUTABLE" OR target_type MATCHES "SHARED_LIBRARY")
+                target_link_options(${target} PRIVATE -sASYNCIFY=2 -sSAFE_HEAP=1) # -sASYNCIFY=2 equals -sJSPI
                 target_link_options(${target} PRIVATE -sASYNCIFY_IGNORE_INDIRECT=1)
             endif()
             
+            # module splitting
             if(target_type STREQUAL "EXECUTABLE")
                 message(STATUS "Setting emscripten properties for executable ${target}")
                 set_target_properties(${target} PROPERTIES SUFFIX ".html")
@@ -343,6 +352,7 @@ if(EMSCRIPTEN)
                 message(STATUS "Skipping ${target} of type ${target_type}")
             endif()
 
+            # dynamic library loading - need to be initiated from main module
             set(STATIC_LIBS Sofa.Simulation.Core Sofa.Core Sofa.Helper)
             if(target_type STREQUAL "EXECUTABLE" AND ${target} MATCHES "Sofa")
                 # Fixup all executables to link static libraries if needed
